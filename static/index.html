@@ -680,11 +680,32 @@
         <!-- Forwarding Mode -->
         <div class="form-group">
           <label class="form-label">Forwarding Mode</label>
-          <select id="modeSelect" class="input-field">
+          <select id="modeSelect" class="input-field" onchange="toggleRangeVisibility()">
             <option value="history">Historical Messages Only (Oldest to Newest)</option>
             <option value="both" selected>Both: Full History + Live Auto-Forwarding</option>
             <option value="live">Live Auto-Forwarding Only (Real-time listener)</option>
           </select>
+        </div>
+
+        <!-- Starting Message Link or ID -->
+        <div class="form-group" id="rangeConfigGroup">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <label class="form-label" style="margin:0;">Start From Message (Link or ID)</label>
+            <span id="rangeBadge" class="badge badge-success" style="display:none; font-size:0.75rem; text-transform:none;"></span>
+          </div>
+          <input type="text" id="startMsgInput" class="input-field" placeholder="e.g. https://t.me/c/4321038948/13906 or 13906" oninput="handleStartMsgInput(this.value)">
+          <div style="font-size:0.75rem; color:var(--text-dim); margin-top:5px; line-height: 1.4;" id="startMsgHint">
+            Paste message link (e.g. <code style="color:var(--accent-cyan); font-family:var(--font-mono);">https://t.me/c/4321038948/13906</code>) or message ID. Forwarding starts from this message <strong>inclusively</strong>, then copies all next until the end.
+          </div>
+        </div>
+
+        <!-- Optional End Message ID -->
+        <div class="form-group" id="endMsgGroup">
+          <label class="form-label">End At Message ID (Optional)</label>
+          <input type="text" id="maxMsgInput" class="input-field" placeholder="Leave empty for all until the end">
+          <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
+            Leave empty to clone all messages until the newest message in the channel.
+          </div>
         </div>
 
         <!-- Media Filter -->
@@ -1171,11 +1192,122 @@
         document.getElementById('channelIdentifierInput').value = '';
         await loadChannels(false);
         populateChannelDropdowns(d.channel.id, currentAddTarget);
+
+        // If user added using a message link like https://t.me/c/4321038948/13906
+        if (d.channel.message_id && currentAddTarget === 'source') {
+          const startInput = document.getElementById('startMsgInput');
+          if (startInput) {
+            startInput.value = identifier;
+            handleStartMsgInput(identifier);
+          }
+        }
       } catch (err) {
         alert(err.message);
       } finally {
         btn.innerText = 'Add to Dropdown';
         btn.disabled = false;
+      }
+    }
+
+    // --- Message Range & Link Parsing Helpers ---
+    function parseMessageLinkClient(text) {
+      text = (text || '').trim();
+      if (!text) return { channel_id: null, channel_ident: null, message_id: 0 };
+      if (/^\d+$/.test(text)) {
+        return { channel_id: null, channel_ident: null, message_id: parseInt(text, 10) };
+      }
+      let clean = text.split('?')[0].split('#')[0].replace(/\/+$/, '');
+      clean = clean.replace(/^https?:\/\//, '');
+
+      // tg:// format
+      const privMatch = clean.match(/channel=(\d+)&post=(\d+)/);
+      if (privMatch) {
+        const cid = `-100${privMatch[1]}`;
+        return { channel_id: cid, channel_ident: cid, message_id: parseInt(privMatch[2], 10) };
+      }
+      const pubMatch = clean.match(/domain=([^&]+)&post=(\d+)/);
+      if (pubMatch) {
+        return { channel_id: null, channel_ident: pubMatch[1], message_id: parseInt(pubMatch[2], 10) };
+      }
+
+      // t.me/c/<channel_id>/<msg_id>
+      const cMatch = clean.match(/(?:^|t\.me\/)c\/(\d+)(?:\/\d+)?\/(\d+)$/);
+      if (cMatch) {
+        const cid = `-100${cMatch[1]}`;
+        return { channel_id: cid, channel_ident: cid, message_id: parseInt(cMatch[2], 10) };
+      }
+
+      // t.me/<username>/<msg_id>
+      const uMatch = clean.match(/(?:^|t\.me\/)([a-zA-Z0-9_]{3,})(?:\/\d+)?\/(\d+)$/);
+      if (uMatch) {
+        return { channel_id: null, channel_ident: uMatch[1], message_id: parseInt(uMatch[2], 10) };
+      }
+
+      return { channel_id: null, channel_ident: null, message_id: 0 };
+    }
+
+    let parseLinkTimer = null;
+    function handleStartMsgInput(val) {
+      const badge = document.getElementById('rangeBadge');
+      const parsed = parseMessageLinkClient(val);
+
+      if (parsed.message_id > 0) {
+        badge.style.display = 'inline-flex';
+        badge.innerText = `Starts at #${parsed.message_id} (inclusive) ➔ End`;
+
+        // Try auto-selecting source channel if link contains channel info
+        if (parsed.channel_id || parsed.channel_ident) {
+          const srcSelect = document.getElementById('sourceSelect');
+          let matched = false;
+          const targetCid = parsed.channel_id;
+          const targetIdent = (parsed.channel_ident || '').toLowerCase().replace('@', '');
+
+          for (let i = 0; i < srcSelect.options.length; i++) {
+            const opt = srcSelect.options[i];
+            if (targetCid && opt.value === targetCid) {
+              srcSelect.selectedIndex = i;
+              matched = true;
+              break;
+            }
+            if (targetIdent && opt.text.toLowerCase().includes(targetIdent)) {
+              srcSelect.selectedIndex = i;
+              matched = true;
+              break;
+            }
+          }
+
+          // If not in dropdown yet, resolve in background and auto-select
+          if (!matched && (parsed.channel_id || parsed.channel_ident)) {
+            clearTimeout(parseLinkTimer);
+            parseLinkTimer = setTimeout(async () => {
+              try {
+                const res = await fetch('/api/channels/parse_link', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ link: val })
+                });
+                const d = await res.json();
+                if (d.status === 'ok' && d.channel) {
+                  await loadChannels(false);
+                  populateChannelDropdowns(d.channel.id, 'source');
+                  appendLog(new Date().toLocaleTimeString(), 'SUCCESS', `Auto-detected source channel: ${d.channel.title}`);
+                }
+              } catch(e) {}
+            }, 800);
+          }
+        }
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function toggleRangeVisibility() {
+      const mode = document.getElementById('modeSelect').value;
+      const hint = document.getElementById('startMsgHint');
+      if (mode === 'live') {
+        if (hint) hint.innerHTML = '<span style="color:var(--accent-amber);">Note: Live mode listens for brand new incoming messages in real-time. Range options apply to history mode.</span>';
+      } else {
+        if (hint) hint.innerHTML = 'Paste message link (e.g. <code style="color:var(--accent-cyan); font-family:var(--font-mono);">https://t.me/c/4321038948/13906</code>) or message ID. Forwarding starts from this message <strong>inclusively</strong>, then copies all next until the end.';
       }
     }
 
@@ -1203,6 +1335,9 @@
       const reupload_mode = document.getElementById('reuploadCheckbox').checked ? 1 : 0;
       const delay_seconds = parseFloat(document.getElementById('delaySlider').value);
 
+      const startMsgRaw = document.getElementById('startMsgInput').value.trim();
+      const endMsgRaw = document.getElementById('maxMsgInput').value.trim();
+
       const payload = {
         name,
         source_id,
@@ -1212,7 +1347,10 @@
         mode,
         media_filter,
         reupload_mode,
-        delay_seconds
+        delay_seconds,
+        start_link: startMsgRaw,
+        min_msg_id: startMsgRaw,
+        max_msg_id: endMsgRaw
       };
 
       try {
@@ -1263,6 +1401,12 @@
         else if (t.status === 'completed') statusBadge = '<span class="badge badge-primary">Completed</span>';
         else if (t.status === 'live_active') statusBadge = '<span class="badge badge-success">Live Listening</span>';
 
+        const rangeStr = (t.min_msg_id > 0)
+          ? `#${t.min_msg_id} ➔ ${t.max_msg_id > 0 ? '#' + t.max_msg_id : 'End (Inclusive)'}`
+          : 'Full History';
+
+        const currentMsg = t.last_source_msg_id > 0 ? `#${t.last_source_msg_id}` : (t.min_msg_id > 0 ? `#${t.min_msg_id}` : '-');
+
         return `
           <div class="task-item" id="task-card-${t.id}">
             <div class="task-header">
@@ -1272,6 +1416,7 @@
                   <span>From: <strong>${escapeHtml(t.source_title)}</strong></span>
                   <span>➔</span>
                   <span>To: <strong>${escapeHtml(t.destination_title)}</strong></span>
+                  <span>• Range: <strong style="color:var(--accent-cyan);">${rangeStr}</strong></span>
                   <span>• Mode: <strong>${t.mode}</strong></span>
                   <span>• Delay: <strong>${t.delay_seconds}s</strong></span>
                 </div>
@@ -1286,6 +1431,7 @@
             <div class="task-stats-row">
               <div>
                 <span>Processed: <strong>${processed}</strong>${total > 0 ? '/' + total : ''}</span>
+                <span style="margin-left: 12px; color: var(--text-dim);">Last Msg: <strong>${currentMsg}</strong></span>
                 <span style="margin-left: 12px; color: var(--accent-emerald);">Copied: <strong>${forwarded}</strong></span>
                 ${failed > 0 ? `<span style="margin-left: 12px; color: var(--accent-rose);">Failed: <strong>${failed}</strong></span>` : ''}
               </div>

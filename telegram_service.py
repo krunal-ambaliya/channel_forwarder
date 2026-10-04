@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import logging
 from pathlib import Path
@@ -30,6 +31,64 @@ except ImportError:
 
 logger = logging.getLogger("telegram_forwarder")
 print(logger_msg)
+
+def parse_telegram_message_link(text: str) -> Dict[str, Any]:
+    """
+    Parses a telegram message link or message ID.
+    Supports:
+    - https://t.me/c/4321038948/13906 (private channel message link)
+    - https://t.me/c/4321038948/13906?single
+    - https://t.me/c/4321038948/2/13906 (forum topic thread message link)
+    - https://t.me/username/13906 (public channel message link)
+    - t.me/c/4321038948/13906
+    - tg://privatepost?channel=4321038948&post=13906
+    - tg://resolve?domain=username&post=13906
+    - 13906 (standalone ID)
+    Returns:
+    {
+        "channel_identifier": str or None,
+        "channel_id": int or None,
+        "message_id": int
+    }
+    """
+    text = str(text or "").strip()
+    if not text:
+        return {"channel_identifier": None, "channel_id": None, "message_id": 0}
+
+    if text.isdigit():
+        return {"channel_identifier": None, "channel_id": None, "message_id": int(text)}
+
+    clean = text.split("?")[0].split("#")[0].rstrip("/")
+
+    for prefix in ["https://", "http://"]:
+        if clean.startswith(prefix):
+            clean = clean[len(prefix):]
+
+    if text.startswith("tg://"):
+        m_priv = re.search(r"channel=(\d+)&post=(\d+)", text)
+        if m_priv:
+            cid = int(f"-100{m_priv.group(1)}")
+            return {"channel_identifier": str(cid), "channel_id": cid, "message_id": int(m_priv.group(2))}
+        m_pub = re.search(r"domain=([^&]+)&post=(\d+)", text)
+        if m_pub:
+            return {"channel_identifier": m_pub.group(1), "channel_id": None, "message_id": int(m_pub.group(2))}
+
+    # Match t.me/c/<channel_id>/<optional_topic_id>/<msg_id>
+    m_c = re.search(r"(?:^|t\.me\/)c\/(\d+)(?:\/\d+)?\/(\d+)$", clean)
+    if m_c:
+        cid_str = m_c.group(1)
+        cid = int(f"-100{cid_str}")
+        msg_id = int(m_c.group(2))
+        return {"channel_identifier": str(cid), "channel_id": cid, "message_id": msg_id}
+
+    # Match t.me/<username>/<optional_topic_id>/<msg_id>
+    m_u = re.search(r"(?:^|t\.me\/)([a-zA-Z0-9_]{3,})(?:\/\d+)?\/(\d+)$", clean)
+    if m_u:
+        uname = m_u.group(1)
+        msg_id = int(m_u.group(2))
+        return {"channel_identifier": uname, "channel_id": None, "message_id": msg_id}
+
+    return {"channel_identifier": None, "channel_id": None, "message_id": 0}
 
 class TelegramService:
     def __init__(self):
@@ -237,11 +296,21 @@ class TelegramService:
         return dialogs
 
     async def add_or_resolve_channel(self, identifier: str) -> Dict[str, Any]:
-        """Join or resolve a channel/group by @username, t.me link, invite hash, or ID."""
+        """Join or resolve a channel/group by @username, t.me link, message link, invite hash, or ID."""
         if not self.client or not await self.client.is_user_authorized():
             raise Exception("User not logged in.")
 
-        ident = identifier.strip()
+        # Extract message link info if user pasted a message URL like https://t.me/c/4321038948/13906
+        parsed_link = parse_telegram_message_link(identifier)
+        parsed_msg_id = parsed_link["message_id"]
+
+        if parsed_link["channel_identifier"]:
+            ident = parsed_link["channel_identifier"]
+        elif parsed_link["channel_id"]:
+            ident = str(parsed_link["channel_id"])
+        else:
+            ident = identifier.strip()
+
         entity = None
 
         try:
@@ -279,7 +348,7 @@ class TelegramService:
                     clean_ident = clean_ident.replace("t.me/", "")
 
                 if clean_ident.startswith("c/"):
-                    # Internal private channel post link: t.me/c/1234567890/...
+                    # Internal private channel link: t.me/c/1234567890/...
                     cid_str = clean_ident.split("/")[1]
                     channel_id = int(f"-100{cid_str}") if not cid_str.startswith("-100") else int(cid_str)
                     entity = await self.client.get_entity(channel_id)
@@ -310,7 +379,8 @@ class TelegramService:
                     "username": f"@{username}" if username else None,
                     "type": chat_type,
                     "can_send": True,
-                    "unread_count": 0
+                    "unread_count": 0,
+                    "message_id": parsed_msg_id
                 }
                 # Prepend to cached dialogs if not present
                 if not any(d["id"] == formatted["id"] for d in self.cached_dialogs):
@@ -320,6 +390,24 @@ class TelegramService:
                 raise Exception("Could not resolve entity.")
         except Exception as e:
             raise Exception(f"Failed to resolve channel: {str(e)}")
+
+    async def resolve_message_link(self, link_or_identifier: str) -> Dict[str, Any]:
+        """Resolve a full Telegram message link into channel info and message ID."""
+        parsed = parse_telegram_message_link(link_or_identifier)
+        target = parsed["channel_identifier"] or (str(parsed["channel_id"]) if parsed["channel_id"] else None)
+        channel_info = None
+
+        if target:
+            try:
+                channel_info = await self.add_or_resolve_channel(target)
+            except Exception as e:
+                logger.warning(f"Could not resolve channel '{target}' from message link: {e}")
+
+        return {
+            "channel": channel_info,
+            "message_id": parsed["message_id"],
+            "channel_identifier": target
+        }
 
     async def clean_copy_message(
         self,

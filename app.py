@@ -2,7 +2,7 @@ import os
 import json
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from database import init_db, get_db
 from config import load_config, save_config
-from telegram_service import telegram_service
+from telegram_service import telegram_service, parse_telegram_message_link
 from worker import worker
 
 @asynccontextmanager
@@ -49,6 +49,9 @@ class PasswordModel(BaseModel):
 class AddChannelModel(BaseModel):
     identifier: str
 
+class ParseLinkModel(BaseModel):
+    link: str
+
 class TaskCreateModel(BaseModel):
     name: Optional[str] = None
     source_id: str
@@ -59,8 +62,9 @@ class TaskCreateModel(BaseModel):
     reupload_mode: int = 0 # 0: smart clean copy, 1: true download & re-upload
     media_filter: str = "all" # all, media_only, text_only, photos, videos, documents
     delay_seconds: float = 1.5
-    min_msg_id: int = 0
-    max_msg_id: int = 0
+    min_msg_id: Optional[Union[int, str]] = 0
+    max_msg_id: Optional[Union[int, str]] = 0
+    start_link: Optional[str] = None
     reverse_order: int = 1
 
 # WebSocket Manager
@@ -157,6 +161,14 @@ async def add_channel(data: AddChannelModel):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/api/channels/parse_link")
+async def parse_channel_link(data: ParseLinkModel):
+    try:
+        res = await telegram_service.resolve_message_link(data.link)
+        return {"status": "ok", **res}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # --- Task Endpoints ---
 
 @app.get("/api/tasks")
@@ -171,6 +183,29 @@ async def list_tasks():
 @app.post("/api/tasks")
 async def create_task(data: TaskCreateModel):
     name = data.name or f"{data.source_title} ➔ {data.destination_title}"
+
+    # Extract starting message ID if provided as a link or number
+    min_msg_id = 0
+    if data.start_link:
+        p = parse_telegram_message_link(data.start_link)
+        if p["message_id"] > 0:
+            min_msg_id = p["message_id"]
+
+    if not min_msg_id and data.min_msg_id is not None:
+        if isinstance(data.min_msg_id, str):
+            p = parse_telegram_message_link(data.min_msg_id)
+            min_msg_id = p["message_id"] if p["message_id"] > 0 else (int(data.min_msg_id) if data.min_msg_id.isdigit() else 0)
+        else:
+            min_msg_id = int(data.min_msg_id)
+
+    max_msg_id = 0
+    if data.max_msg_id is not None:
+        if isinstance(data.max_msg_id, str):
+            p = parse_telegram_message_link(data.max_msg_id)
+            max_msg_id = p["message_id"] if p["message_id"] > 0 else (int(data.max_msg_id) if data.max_msg_id.isdigit() else 0)
+        else:
+            max_msg_id = int(data.max_msg_id)
+
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
@@ -182,12 +217,12 @@ async def create_task(data: TaskCreateModel):
     """, (
         name, data.source_id, data.source_title, data.destination_id, data.destination_title,
         data.mode, data.reupload_mode, data.media_filter, data.delay_seconds,
-        data.min_msg_id, data.max_msg_id, data.reverse_order
+        min_msg_id, max_msg_id, data.reverse_order
     ))
     task_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    return {"status": "ok", "task_id": task_id}
+    return {"status": "ok", "task_id": task_id, "min_msg_id": min_msg_id}
 
 @app.post("/api/tasks/{task_id}/start")
 async def start_task(task_id: int):

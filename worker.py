@@ -185,14 +185,30 @@ class ForwardingWorker:
 
             # If mode includes history
             if mode in ["history", "both"]:
-                await self.broadcast_log(task_id, "INFO", "Scanning historical messages...")
-                
+                reverse_order = bool(task.get("reverse_order", 1))
+                min_msg_id = task.get("min_msg_id") or 0
+                max_msg_id = task.get("max_msg_id") or 0
+
+                if min_msg_id > 0 and max_msg_id > 0:
+                    await self.broadcast_log(task_id, "INFO", f"Scanning historical messages: from #{min_msg_id} (inclusive) up to #{max_msg_id}...")
+                elif min_msg_id > 0:
+                    await self.broadcast_log(task_id, "INFO", f"Scanning historical messages: starting from #{min_msg_id} (inclusive) all until the end...")
+                else:
+                    await self.broadcast_log(task_id, "INFO", "Scanning all historical messages...")
+
                 # Estimate total messages
                 total_count = 0
-                async for _ in client.iter_messages(src_entity, limit=0):
-                    pass
                 try:
-                    total_count = (await client.get_messages(src_entity, limit=1)).total or 0
+                    latest_msgs = await client.get_messages(src_entity, limit=1)
+                    if latest_msgs:
+                        latest_id = latest_msgs[0].id
+                        if min_msg_id > 0:
+                            target_end = min(max_msg_id, latest_id) if max_msg_id > 0 else latest_id
+                            total_count = max(0, target_end - min_msg_id + 1)
+                        else:
+                            total_count = latest_msgs.total or latest_id
+                    else:
+                        total_count = 0
                 except Exception:
                     total_count = 0
 
@@ -203,15 +219,24 @@ class ForwardingWorker:
                 conn.close()
 
                 # Iterate messages: reverse=True gets oldest to newest (natural chronology)
-                reverse_order = bool(task.get("reverse_order", 1))
-                min_id = last_id if reverse_order and last_id > 0 else (task.get("min_msg_id") or 0)
-                max_id = task.get("max_msg_id") or 0
-                
                 iter_kwargs = {"reverse": reverse_order}
-                if min_id > 0:
-                    iter_kwargs["min_id"] = min_id
-                if max_id > 0:
-                    iter_kwargs["max_id"] = max_id
+                if reverse_order:
+                    if last_id > 0:
+                        # Resume after last processed message
+                        iter_kwargs["min_id"] = last_id
+                    elif min_msg_id > 0:
+                        # In Telethon min_id is exclusive (yields id > min_id).
+                        # Subtract 1 so min_msg_id itself is included and yielded first!
+                        iter_kwargs["min_id"] = max(0, min_msg_id - 1)
+                    if max_msg_id > 0:
+                        iter_kwargs["max_id"] = max_msg_id + 1
+                else:
+                    if min_msg_id > 0:
+                        iter_kwargs["min_id"] = max(0, min_msg_id - 1)
+                    if last_id > 0:
+                        iter_kwargs["max_id"] = last_id
+                    elif max_msg_id > 0:
+                        iter_kwargs["max_id"] = max_msg_id + 1
 
                 async for message in client.iter_messages(src_entity, **iter_kwargs):
                     # Check stop
