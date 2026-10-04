@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Python virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Temporary downloads & media cache
+temp_downloads/
+downloads/
+
+# Telegram sessions & sensitive state
+*.session
+*.session-journal
+*.session-shm
+*.session-wal
+
+# Local SQLite databases
+forwarder.db
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Sensitive configuration containing API ID, hash, phone number
+config.json
+
+# Logs
+*.log
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo

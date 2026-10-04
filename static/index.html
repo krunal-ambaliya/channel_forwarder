@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeleForward | Autonomous Channel Forwarder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0a0c14;
+      --bg-card: rgba(22, 27, 46, 0.75);
+      --bg-card-hover: rgba(30, 36, 61, 0.85);
+      --bg-input: rgba(14, 18, 32, 0.8);
+      --border-color: rgba(99, 102, 241, 0.18);
+      --border-focus: #6366f1;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-glow: rgba(99, 102, 241, 0.35);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font-main: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(99, 102, 241, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 45%),
+        linear-gradient(180deg, #090b12 0%, #0c0f1a 100%);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    /* Top Navbar */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px 28px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px var(--primary-glow);
+    }
+
+    .brand-logo svg {
+      width: 24px;
+      height: 24px;
+      fill: #ffffff;
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #ffffff 40%, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 0.78rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(14, 18, 32, 0.6);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px 6px 8px;
+      border-radius: 9999px;
+    }
+
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: white;
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .user-phone {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      box-shadow: 0 6px 20px var(--primary-glow);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.12);
+      color: var(--accent-rose);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .btn-danger:hover {
+      background: rgba(244, 63, 94, 0.25);
+    }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-success:hover {
+      background: rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-icon {
+      padding: 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Main Layout */
+    .grid-container {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 24px;
+      flex: 1;
+    }
+
+    @media (max-width: 1080px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .card-title-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-primary {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .input-field {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    select.input-field {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 16px;
+      cursor: pointer;
+    }
+
+    select.input-field option {
+      background: #111422;
+      color: #f8fafc;
+      padding: 10px;
+    }
+
+    .channel-select-wrap {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Switch toggle */
+    .switch-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      padding: 10px 14px;
+      background: rgba(14, 18, 32, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+      transition: background 0.2s;
+    }
+
+    .switch-label:hover {
+      background: rgba(20, 26, 46, 0.7);
+    }
+
+    .switch-desc {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .switch-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .switch-hint {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+    }
+
+    .toggle-checkbox {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      -webkit-appearance: none;
+      background: #334155;
+      outline: none;
+      border-radius: 20px;
+      transition: 0.3s;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .toggle-checkbox:checked {
+      background: var(--primary);
+    }
+
+    .toggle-checkbox::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      background: #ffffff;
+      transition: 0.3s;
+    }
+
+    .toggle-checkbox:checked::before {
+      transform: translateX(20px);
+    }
+
+    /* Info notice */
+    .notice-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 0.78rem;
+      color: #c7d2fe;
+      margin-bottom: 18px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    /* Task Cards */
+    .tasks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .task-item {
+      background: rgba(14, 18, 32, 0.7);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      transition: all 0.2s;
+    }
+
+    .task-item:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(18, 24, 42, 0.85);
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .task-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .task-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #06b6d4);
+      border-radius: 9999px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .task-stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Terminal Log View */
+    .terminal-card {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 280px;
+    }
+
+    .terminal-body {
+      background: #06080e;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #94a3b8;
+      flex: 1;
+      max-height: 380px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 10px;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: #475569;
+      user-select: none;
+    }
+
+    .log-SUCCESS { color: #34d399; }
+    .log-INFO { color: #60a5fa; }
+    .log-WARN { color: #fbbf24; }
+    .log-ERROR { color: #f87171; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.8);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: #111526;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      transform: translateY(20px);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    .spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-dim);
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </div>
+      <div>
+        <h1 class="brand-title">TeleForward</h1>
+        <div class="brand-subtitle">Autonomous Message & Media Cloning System</div>
+      </div>
+    </div>
+
+    <div id="authHeaderSection">
+      <!-- Injected via JS based on login status -->
+      <button class="btn btn-primary" onclick="openLoginModal()">Connect Telegram</button>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <main class="grid-container">
+    
+    <!-- LEFT: Task Creation Panel -->
+    <section class="card">
+      <div class="card-title">
+        <div class="card-title-left">
+          <span>Create Forwarding Task</span>
+        </div>
+        <span class="badge badge-primary">Independent Cloning</span>
+      </div>
+
+      <div class="notice-box">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20" style="flex-shrink:0"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+        <div>
+          <strong>Zero-Source Link Guarantee:</strong> All messages & media are forwarded cleanly without source headers. Even if the source channel gets banned or media deleted, destination data remains 100% safe.
+        </div>
+      </div>
+
+      <form id="createTaskForm" onsubmit="handleCreateTask(event)">
+        <!-- Task Name -->
+        <div class="form-group">
+          <label class="form-label">Task Label (Optional)</label>
+          <input type="text" id="taskNameInput" class="input-field" placeholder="e.g. VIP Backup to Archive">
+        </div>
+
+        <!-- Source Channel Dropdown -->
+        <div class="form-group">
+          <label class="form-label">Source Channel (Origin)</label>
+          <div class="channel-select-wrap">
+            <select id="sourceSelect" class="input-field" required>
+              <option value="" disabled selected>Select source channel...</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-icon" title="Refresh channels list" onclick="loadChannels(true, 'source')">
+              <svg id="refreshIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+            <button type="button" class="btn btn-secondary btn-icon" title="Add / Join Channel" onclick="openAddChannelModal('source')">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Destination Channel Dropdown -->
+        <div class="form-group">
+          <label class="form-label">Destination Channel (Target)</label>
+          <div class="channel-select-wrap">
+            <select id="destinationSelect" class="input-field" required>
+              <option value="" disabled selected>Select destination channel...</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-icon" title="Refresh channels list" onclick="loadChannels(true, 'dest')">
+              <svg id="destRefreshIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+            <button type="button" class="btn btn-secondary btn-icon" title="Add / Join Channel" onclick="openAddChannelModal('dest')">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Forwarding Mode -->
+        <div class="form-group">
+          <label class="form-label">Forwarding Mode</label>
+          <select id="modeSelect" class="input-field">
+            <option value="history">Historical Messages Only (Oldest to Newest)</option>
+            <option value="both" selected>Both: Full History + Live Auto-Forwarding</option>
+            <option value="live">Live Auto-Forwarding Only (Real-time listener)</option>
+          </select>
+        </div>
+
+        <!-- Media Filter -->
+        <div class="form-group">
+          <label class="form-label">Content Filter</label>
+          <select id="mediaFilterSelect" class="input-field">
+            <option value="all">All Content (Text, Photos, Videos, Files, Audio)</option>
+            <option value="media_only">Media Only (Exclude plain text)</option>
+            <option value="videos">Videos & Clips Only</option>
+            <option value="photos">Photos & Images Only</option>
+            <option value="documents">Documents & Files Only</option>
+            <option value="text_only">Text Messages Only</option>
+          </select>
+        </div>
+
+        <!-- True Re-upload & Clone Toggle -->
+        <label class="switch-label">
+          <div class="switch-desc">
+            <span class="switch-title">Deep Clone & Re-upload</span>
+            <span class="switch-hint">Downloads & re-uploads fresh. Bypasses "Saving Restricted" channels.</span>
+          </div>
+          <input type="checkbox" id="reuploadCheckbox" class="toggle-checkbox">
+        </label>
+
+        <!-- Throttling Delay -->
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+            <label class="form-label" style="margin:0;">Safety Delay Between Messages</label>
+            <span id="delayVal" style="font-family:var(--font-mono); font-size:0.8rem; color:var(--accent-cyan);">1.5s</span>
+          </div>
+          <input type="range" id="delaySlider" min="0.5" max="6.0" step="0.5" value="1.5" style="width:100%; accent-color: var(--primary);" oninput="document.getElementById('delayVal').innerText = this.value + 's'">
+        </div>
+
+        <button type="submit" id="btnCreateTask" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Create Autonomous Task
+        </button>
+      </form>
+    </section>
+
+    <!-- RIGHT: Active Tasks & Live Terminal -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      
+      <!-- Tasks List Card -->
+      <section class="card">
+        <div class="card-title">
+          <div class="card-title-left">
+            <span>Forwarding Tasks & Threads</span>
+          </div>
+          <button class="btn btn-secondary btn-icon" onclick="loadTasks()" title="Refresh tasks">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+        </div>
+
+        <div id="tasksList" class="tasks-list">
+          <div class="empty-state">No active forwarding tasks. Choose a source and destination to create one!</div>
+        </div>
+      </section>
+
+      <!-- Live Terminal Activity Log -->
+      <section class="card terminal-card">
+        <div class="card-title">
+          <div class="card-title-left">
+            <span>Autonomous Activity Console</span>
+            <span class="badge badge-success" id="wsStatusBadge">Connected</span>
+          </div>
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding: 4px 10px;" onclick="clearLogs()">Clear</button>
+        </div>
+        <div id="terminalBody" class="terminal-body">
+          <div class="log-line">
+            <span class="log-time">[System]</span>
+            <span class="log-INFO">Console initialized. Ready to clone and forward messages autonomously.</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Telegram Authentication Modal -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <h2 class="modal-title">Telegram Authentication</h2>
+      <div class="modal-subtitle">Login is saved in your local session. You will never have to re-enter credentials on restart.</div>
+
+      <!-- Step 1: API ID & Hash -->
+      <div id="authStep1">
+        <div class="form-group">
+          <label class="form-label">API ID</label>
+          <input type="number" id="apiIdInput" class="input-field" placeholder="e.g. 12345678" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Hash</label>
+          <input type="text" id="apiHashInput" class="input-field" placeholder="e.g. 0123456789abcdef0123456789abcdef" required>
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:16px;">
+          Obtain credentials free from <a href="https://my.telegram.org" target="_blank" style="color:var(--accent-cyan); text-decoration:none;">my.telegram.org</a>.
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="submitCredentials()">Next: Phone Number</button>
+      </div>
+
+      <!-- Step 2: Phone Number -->
+      <div id="authStep2" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Phone Number (with Country Code)</label>
+          <input type="text" id="phoneInput" class="input-field" placeholder="+1234567890" required>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" onclick="showAuthStep(1)">Back</button>
+          <button class="btn btn-primary" style="flex:1" id="btnSendCode" onclick="sendAuthCode()">Send Verification Code</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Telegram Verification Code -->
+      <div id="authStep3" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Verification Code (from Telegram app)</label>
+          <input type="text" id="codeInput" class="input-field" placeholder="12345" required>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" onclick="showAuthStep(2)">Back</button>
+          <button class="btn btn-primary" style="flex:1" id="btnVerifyCode" onclick="submitAuthCode()">Verify & Login</button>
+        </div>
+      </div>
+
+      <!-- Step 4: 2FA Password (if enabled) -->
+      <div id="authStep4" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Two-Factor Authentication (2FA) Password</label>
+          <input type="password" id="passwordInput" class="input-field" placeholder="Your 2FA Password" required>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" onclick="showAuthStep(3)">Back</button>
+          <button class="btn btn-primary" style="flex:1" id="btnVerify2FA" onclick="submit2FA()">Submit Password</button>
+        </div>
+      </div>
+
+      <div style="text-align: right; margin-top: 18px;">
+        <button class="btn btn-secondary" style="font-size:0.8rem; padding: 6px 12px;" onclick="closeLoginModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Channel Modal -->
+  <div class="modal-overlay" id="addChannelModal">
+    <div class="modal">
+      <h2 class="modal-title">Add / Join Channel</h2>
+      <div class="modal-subtitle">Enter a public @username, invite link (t.me/+xxxx), or channel ID.</div>
+
+      <div class="form-group">
+        <label class="form-label">Channel Identifier or Link</label>
+        <input type="text" id="channelIdentifierInput" class="input-field" placeholder="@mychannel or https://t.me/+xyz" required>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content: flex-end; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="closeAddChannelModal()">Cancel</button>
+        <button class="btn btn-primary" id="btnAddChannelConfirm" onclick="submitAddChannel()">Add to Dropdown</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    let authState = { authenticated: false, user: null };
+    let channelsList = [];
+
+    // --- WebSocket Connection ---
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        document.getElementById('wsStatusBadge').innerText = 'Connected';
+        document.getElementById('wsStatusBadge').className = 'badge badge-success';
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.level === 'TASK_UPDATE') {
+            loadTasks();
+          } else {
+            appendLog(data.timestamp, data.level, data.message);
+          }
+        } catch(e) {}
+      };
+
+      ws.onclose = () => {
+        document.getElementById('wsStatusBadge').innerText = 'Reconnecting...';
+        document.getElementById('wsStatusBadge').className = 'badge badge-warning';
+        setTimeout(connectWebSocket, 2000);
+      };
+
+      // Heartbeat
+      setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send('ping');
+        }
+      }, 20000);
+    }
+
+    function appendLog(time, level, message) {
+      const body = document.getElementById('terminalBody');
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${level}">${escapeHtml(message)}</span>`;
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('terminalBody').innerHTML = '';
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+
+    // --- Authentication ---
+    async function checkAuthStatus() {
+      try {
+        const res = await fetch('/api/auth/status');
+        const data = await res.json();
+        authState = data;
+        renderAuthHeader();
+        if (data.authenticated) {
+          loadChannels();
+          loadTasks();
+        } else {
+          openLoginModal();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderAuthHeader() {
+      const container = document.getElementById('authHeaderSection');
+      if (authState.authenticated && authState.user) {
+        const u = authState.user;
+        const initial = (u.first_name || 'U')[0].toUpperCase();
+        container.innerHTML = `
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="user-badge">
+              <div class="user-avatar">${initial}</div>
+              <div class="user-info">
+                <span class="user-name">${u.first_name} ${u.last_name || ''}</span>
+                <span class="user-phone">${u.username || u.phone || 'Connected'}</span>
+              </div>
+            </div>
+            <button class="btn btn-danger" style="font-size:0.78rem; padding: 6px 12px;" onclick="handleLogout()">Logout</button>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `<button class="btn btn-primary" onclick="openLoginModal()">Connect Telegram</button>`;
+      }
+    }
+
+    function openLoginModal() {
+      document.getElementById('loginModal').classList.add('active');
+      showAuthStep(1);
+    }
+
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.remove('active');
+    }
+
+    function showAuthStep(step) {
+      document.getElementById('authStep1').style.display = step === 1 ? 'block' : 'none';
+      document.getElementById('authStep2').style.display = step === 2 ? 'block' : 'none';
+      document.getElementById('authStep3').style.display = step === 3 ? 'block' : 'none';
+      document.getElementById('authStep4').style.display = step === 4 ? 'block' : 'none';
+    }
+
+    async function submitCredentials() {
+      const api_id = document.getElementById('apiIdInput').value;
+      const api_hash = document.getElementById('apiHashInput').value;
+      if (!api_id || !api_hash) return alert('Please enter both API ID and API Hash.');
+      
+      try {
+        const res = await fetch('/api/auth/credentials', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ api_id: parseInt(api_id), api_hash })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Failed');
+        showAuthStep(2);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function sendAuthCode() {
+      const phone = document.getElementById('phoneInput').value;
+      if (!phone) return alert('Please enter phone number.');
+      const btn = document.getElementById('btnSendCode');
+      btn.innerText = 'Sending code...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/auth/send_code', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ phone })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Failed to send code');
+        showAuthStep(3);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.innerText = 'Send Verification Code';
+        btn.disabled = false;
+      }
+    }
+
+    async function submitAuthCode() {
+      const code = document.getElementById('codeInput').value;
+      if (!code) return alert('Please enter code');
+      const btn = document.getElementById('btnVerifyCode');
+      btn.innerText = 'Verifying...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/auth/verify_code', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ code })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Verification failed');
+        
+        if (d.status === '2fa_required') {
+          showAuthStep(4);
+        } else {
+          closeLoginModal();
+          checkAuthStatus();
+        }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.innerText = 'Verify & Login';
+        btn.disabled = false;
+      }
+    }
+
+    async function submit2FA() {
+      const password = document.getElementById('passwordInput').value;
+      if (!password) return alert('Please enter 2FA password');
+      const btn = document.getElementById('btnVerify2FA');
+      btn.innerText = 'Checking...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/auth/verify_2fa', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ password })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Incorrect password');
+        closeLoginModal();
+        checkAuthStatus();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.innerText = 'Submit Password';
+        btn.disabled = false;
+      }
+    }
+
+    async function handleLogout() {
+      if (!confirm('Log out from Telegram session?')) return;
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.reload();
+    }
+
+    // --- Channel Management ---
+    let currentAddTarget = 'source';
+
+    async function loadChannels(forceRefresh = false, target = 'all') {
+      const srcIcon = document.getElementById('refreshIcon');
+      const destIcon = document.getElementById('destRefreshIcon');
+
+      if (forceRefresh) {
+        if (target === 'source' || target === 'all') if (srcIcon) srcIcon.classList.add('spin');
+        if (target === 'dest' || target === 'all') if (destIcon) destIcon.classList.add('spin');
+      }
+
+      try {
+        const res = await fetch(`/api/channels?refresh=${forceRefresh}`);
+        const data = await res.json();
+        if (data.channels) {
+          channelsList = data.channels;
+          populateChannelDropdowns();
+          if (forceRefresh) appendLog(new Date().toLocaleTimeString(), 'INFO', `Refreshed ${channelsList.length} channels.`);
+        }
+      } catch (err) {
+        console.error("Failed to load channels:", err);
+      } finally {
+        if (srcIcon) srcIcon.classList.remove('spin');
+        if (destIcon) destIcon.classList.remove('spin');
+      }
+    }
+
+    function populateChannelDropdowns(selectChannelId = null, selectTarget = null) {
+      const src = document.getElementById('sourceSelect');
+      const dest = document.getElementById('destinationSelect');
+
+      const prevSrc = src.value;
+      const prevDest = dest.value;
+
+      src.innerHTML = '<option value="" disabled selected>Select source channel...</option>';
+      dest.innerHTML = '<option value="" disabled selected>Select destination channel...</option>';
+
+      channelsList.forEach(ch => {
+        const label = `${ch.title} ${ch.username ? '(' + ch.username + ')' : ''} [${ch.type}]`;
+        
+        // Add to source
+        const opt1 = document.createElement('option');
+        opt1.value = ch.id;
+        opt1.dataset.title = ch.title;
+        opt1.innerText = label;
+        src.appendChild(opt1);
+
+        // Add to destination
+        const opt2 = document.createElement('option');
+        opt2.value = ch.id;
+        opt2.dataset.title = ch.title;
+        opt2.innerText = label;
+        dest.appendChild(opt2);
+      });
+
+      if (prevSrc) src.value = prevSrc;
+      if (prevDest) dest.value = prevDest;
+
+      // Auto-select newly added channel
+      if (selectChannelId) {
+        if (selectTarget === 'dest') {
+          dest.value = selectChannelId;
+        } else if (selectTarget === 'source') {
+          src.value = selectChannelId;
+        }
+      }
+    }
+
+    function openAddChannelModal(target = 'source') {
+      currentAddTarget = target;
+      const modalSubtitle = document.querySelector('#addChannelModal .modal-subtitle');
+      if (modalSubtitle) {
+        modalSubtitle.innerText = target === 'dest' 
+          ? 'Enter a channel username or link to add as Destination (Target).'
+          : 'Enter a channel username or link to add as Source (Origin).';
+      }
+      document.getElementById('addChannelModal').classList.add('active');
+    }
+
+    function closeAddChannelModal() {
+      document.getElementById('addChannelModal').classList.remove('active');
+    }
+
+    async function submitAddChannel() {
+      const identifier = document.getElementById('channelIdentifierInput').value.trim();
+      if (!identifier) return alert('Enter channel username or link');
+      const btn = document.getElementById('btnAddChannelConfirm');
+      btn.innerText = 'Resolving...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/channels/add', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ identifier })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Could not resolve channel');
+        
+        appendLog(new Date().toLocaleTimeString(), 'SUCCESS', `Added channel: ${d.channel.title}`);
+        closeAddChannelModal();
+        document.getElementById('channelIdentifierInput').value = '';
+        await loadChannels(false);
+        populateChannelDropdowns(d.channel.id, currentAddTarget);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.innerText = 'Add to Dropdown';
+        btn.disabled = false;
+      }
+    }
+
+    // --- Task Creation & Management ---
+    async function handleCreateTask(e) {
+      e.preventDefault();
+      const srcSelect = document.getElementById('sourceSelect');
+      const destSelect = document.getElementById('destinationSelect');
+
+      const source_id = srcSelect.value;
+      const destination_id = destSelect.value;
+
+      if (!source_id || !destination_id) {
+        return alert('Please select both source and destination channels.');
+      }
+      if (source_id === destination_id) {
+        return alert('Source and destination channels cannot be the same!');
+      }
+
+      const source_title = srcSelect.options[srcSelect.selectedIndex].dataset.title;
+      const destination_title = destSelect.options[destSelect.selectedIndex].dataset.title;
+      const name = document.getElementById('taskNameInput').value.trim() || `${source_title} ➔ ${destination_title}`;
+      const mode = document.getElementById('modeSelect').value;
+      const media_filter = document.getElementById('mediaFilterSelect').value;
+      const reupload_mode = document.getElementById('reuploadCheckbox').checked ? 1 : 0;
+      const delay_seconds = parseFloat(document.getElementById('delaySlider').value);
+
+      const payload = {
+        name,
+        source_id,
+        source_title,
+        destination_id,
+        destination_title,
+        mode,
+        media_filter,
+        reupload_mode,
+        delay_seconds
+      };
+
+      try {
+        const res = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Failed to create task');
+
+        appendLog(new Date().toLocaleTimeString(), 'SUCCESS', `Task created: ${name}`);
+        // Auto-start task immediately
+        await fetch(`/api/tasks/${d.task_id}/start`, { method: 'POST' });
+        loadTasks();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadTasks() {
+      try {
+        const res = await fetch('/api/tasks');
+        const data = await res.json();
+        renderTasks(data.tasks || []);
+      } catch (err) {
+        console.error("Failed to load tasks:", err);
+      }
+    }
+
+    function renderTasks(tasks) {
+      const container = document.getElementById('tasksList');
+      if (tasks.length === 0) {
+        container.innerHTML = '<div class="empty-state">No active forwarding tasks. Choose a source and destination to create one!</div>';
+        return;
+      }
+
+      container.innerHTML = tasks.map(t => {
+        const total = t.total_messages || 0;
+        const processed = t.processed_messages || 0;
+        const forwarded = t.forwarded_messages || 0;
+        const failed = t.failed_messages || 0;
+        const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+
+        let statusBadge = '<span class="badge badge-warning">Idle</span>';
+        if (t.status === 'running') statusBadge = '<span class="badge badge-success">Running</span>';
+        else if (t.status === 'paused') statusBadge = '<span class="badge badge-warning">Paused</span>';
+        else if (t.status === 'completed') statusBadge = '<span class="badge badge-primary">Completed</span>';
+        else if (t.status === 'live_active') statusBadge = '<span class="badge badge-success">Live Listening</span>';
+
+        return `
+          <div class="task-item" id="task-card-${t.id}">
+            <div class="task-header">
+              <div>
+                <div class="task-name">${escapeHtml(t.name)}</div>
+                <div class="task-meta">
+                  <span>From: <strong>${escapeHtml(t.source_title)}</strong></span>
+                  <span>➔</span>
+                  <span>To: <strong>${escapeHtml(t.destination_title)}</strong></span>
+                  <span>• Mode: <strong>${t.mode}</strong></span>
+                  <span>• Delay: <strong>${t.delay_seconds}s</strong></span>
+                </div>
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${pct}%"></div>
+            </div>
+
+            <div class="task-stats-row">
+              <div>
+                <span>Processed: <strong>${processed}</strong>${total > 0 ? '/' + total : ''}</span>
+                <span style="margin-left: 12px; color: var(--accent-emerald);">Copied: <strong>${forwarded}</strong></span>
+                ${failed > 0 ? `<span style="margin-left: 12px; color: var(--accent-rose);">Failed: <strong>${failed}</strong></span>` : ''}
+              </div>
+              <div class="task-actions">
+                ${t.status === 'running' 
+                  ? `<button class="btn btn-secondary btn-icon" title="Pause" onclick="pauseTask(${t.id})">
+                      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>`
+                  : `<button class="btn btn-success btn-icon" title="Start / Resume" onclick="startTask(${t.id})">
+                      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>`
+                }
+                <button class="btn btn-secondary btn-icon" title="Stop" onclick="stopTask(${t.id})">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                </button>
+                <button class="btn btn-secondary btn-icon" title="Reset Progress" onclick="resetTask(${t.id})">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+                <button class="btn btn-danger btn-icon" title="Delete Task" onclick="deleteTask(${t.id})">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function startTask(id) {
+      await fetch(`/api/tasks/${id}/start`, { method: 'POST' });
+      loadTasks();
+    }
+
+    async function pauseTask(id) {
+      await fetch(`/api/tasks/${id}/pause`, { method: 'POST' });
+      loadTasks();
+    }
+
+    async function stopTask(id) {
+      await fetch(`/api/tasks/${id}/stop`, { method: 'POST' });
+      loadTasks();
+    }
+
+    async function resetTask(id) {
+      if (!confirm('Reset task progress back to 0?')) return;
+      await fetch(`/api/tasks/${id}/reset`, { method: 'POST' });
+      loadTasks();
+    }
+
+    async function deleteTask(id) {
+      if (!confirm('Are you sure you want to delete this task?')) return;
+      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      loadTasks();
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      connectWebSocket();
+      checkAuthStatus();
+    });
+  </script>
+</body>
+</html>

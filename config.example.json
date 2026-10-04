@@ -1,0 +1,8 @@
+{
+    "api_id": 12345678,
+    "api_hash": "your_api_hash_here",
+    "phone": "+1234567890",
+    "host": "0.0.0.0",
+    "port": 5000,
+    "auto_open_browser": true
+}
