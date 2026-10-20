@@ -4,10 +4,12 @@ import time
 from typing import Dict, Any, Optional, Set, Callable
 from telethon import events
 from telethon.errors import FloodWaitError, ChannelPrivateError, ChatWriteForbiddenError
+from telethon.tl.types import MessageEmpty
 from database import (
     get_db, is_message_forwarded, record_forwarded_message
 )
 from telegram_service import telegram_service
+from wzgram_service import MessageNotFoundError
 
 logger = logging.getLogger("worker")
 
@@ -253,10 +255,27 @@ class ForwardingWorker:
                             self._update_task_status(task_id, "idle")
                             return
 
-                    # Skip empty / service messages
-                    if message.action:
+                    # Skip empty / service / deleted messages
+                    if (
+                        message is None
+                        or isinstance(message, MessageEmpty)
+                        or getattr(message, "empty", False)
+                        or getattr(message, "action", None)
+                    ):
+                        processed += 1
+                        last_id = getattr(message, "id", last_id)
+                        continue
+
+                    # If message has no media and no text, it is empty/deleted
+                    if not message.media and not getattr(message, "message", None):
+                        await self.broadcast_log(
+                            task_id, "WARN",
+                            f"Msg #{message.id} has no content (empty/deleted), skipping to next..."
+                        )
                         processed += 1
                         last_id = message.id
+                        self._update_task_counts(task_id, processed, forwarded, failed, last_id)
+                        await self.broadcast_task_update(task_id)
                         continue
 
                     # Deduplication check
@@ -291,11 +310,14 @@ class ForwardingWorker:
                             async def on_speed_progress(status_text: str):
                                 await self.broadcast_log(task_id, "INFO", f"[Msg #{message.id}] {status_text}")
 
-                            sent_msg = await telegram_service.clean_copy_message(
-                                dest_entity,
-                                message,
-                                force_reupload=reupload_mode,
-                                progress_callback=on_speed_progress
+                            sent_msg = await asyncio.wait_for(
+                                telegram_service.clean_copy_message(
+                                    dest_entity,
+                                    message,
+                                    force_reupload=reupload_mode,
+                                    progress_callback=on_speed_progress
+                                ),
+                                timeout=600.0
                             )
 
                             if sent_msg:
@@ -308,7 +330,26 @@ class ForwardingWorker:
                                     f"Msg #{message.id} copied successfully as destination #{dest_msg_id}!"
                                 )
                             else:
-                                failed += 1
+                                await self.broadcast_log(
+                                    task_id, "WARN",
+                                    f"Msg #{message.id} returned empty result or was deleted, skipping to next..."
+                                )
+                            break
+
+                        except MessageNotFoundError:
+                            await self.broadcast_log(
+                                task_id, "WARN",
+                                f"Msg #{message.id} not found or deleted in source chat, skipping to next..."
+                            )
+                            # Skip immediately without counting as failure or retrying
+                            break
+
+                        except asyncio.TimeoutError:
+                            await self.broadcast_log(
+                                task_id, "WARN",
+                                f"Msg #{message.id} operation timed out (stalled connection), skipping to next..."
+                            )
+                            failed += 1
                             break
 
                         except FloodWaitError as e:
@@ -328,6 +369,14 @@ class ForwardingWorker:
                             failed += 1
                             break
                         except Exception as ex:
+                            err_str = str(ex).lower()
+                            if "not found" in err_str or "message_id_invalid" in err_str or "empty" in err_str:
+                                await self.broadcast_log(
+                                    task_id, "WARN",
+                                    f"Msg #{message.id} not found ({ex}), skipping to next..."
+                                )
+                                break
+
                             await self.broadcast_log(task_id, "ERROR", f"Error on msg #{message.id}: {str(ex)}")
                             if attempt == retry_limit - 1:
                                 failed += 1
@@ -388,11 +437,14 @@ class ForwardingWorker:
                 async def on_live_speed_progress(status_text: str):
                     await self.broadcast_log(task_id, "INFO", f"[LIVE Msg #{msg.id}] {status_text}")
 
-                sent = await telegram_service.clean_copy_message(
-                    dest_entity,
-                    msg,
-                    force_reupload=reupload_mode,
-                    progress_callback=on_live_speed_progress
+                sent = await asyncio.wait_for(
+                    telegram_service.clean_copy_message(
+                        dest_entity,
+                        msg,
+                        force_reupload=reupload_mode,
+                        progress_callback=on_live_speed_progress
+                    ),
+                    timeout=600.0
                 )
                 if sent:
                     dest_msg_id = getattr(sent, "id", 0)
@@ -415,6 +467,10 @@ class ForwardingWorker:
                     await self.broadcast_log(task_id, "SUCCESS", f"[LIVE] Message #{msg.id} forwarded cleanly to destination #{dest_msg_id}!")
                     await self.broadcast_task_update(task_id)
                 await asyncio.sleep(delay_seconds)
+            except MessageNotFoundError:
+                await self.broadcast_log(task_id, "WARN", f"[LIVE] Msg #{msg.id} not found or deleted, skipping...")
+            except asyncio.TimeoutError:
+                await self.broadcast_log(task_id, "WARN", f"[LIVE] Msg #{msg.id} timed out, skipping...")
             except FloodWaitError as e:
                 await self.broadcast_log(task_id, "WARN", f"[LIVE] Flood wait for {e.seconds}s")
                 await asyncio.sleep(e.seconds)

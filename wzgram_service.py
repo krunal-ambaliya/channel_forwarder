@@ -11,9 +11,14 @@ from typing import Optional, Dict, Any, Callable
 import wzgram
 from wzgram.storage.storage import Storage, WZ_PREFIX
 from pyrogram.errors import (
-    ChatForwardsRestricted, FloodWait, ChannelPrivate, ChatWriteForbidden
+    ChatForwardsRestricted, FloodWait, ChannelPrivate, ChatWriteForbidden,
+    MessageIdInvalid, MessageEmpty, RPCError
 )
 from config import BASE_DIR, TEMP_DOWNLOAD_DIR, load_config
+
+class MessageNotFoundError(Exception):
+    """Raised when a message is missing, deleted, or empty in the chat."""
+    pass
 
 logger = logging.getLogger("wzgram_transfer")
 
@@ -148,31 +153,55 @@ class WzgramEngine:
         # 1. Fast Clean Copy (Instant Server-Side Clone without Forward Header)
         if not force_reupload:
             try:
-                copied = await self.client.copy_message(
-                    chat_id=d_id,
-                    from_chat_id=s_id,
-                    message_id=message_id
+                copied = await asyncio.wait_for(
+                    self.client.copy_message(
+                        chat_id=d_id,
+                        from_chat_id=s_id,
+                        message_id=message_id
+                    ),
+                    timeout=20.0
                 )
                 return copied
             except ChatForwardsRestricted:
                 if progress_callback:
                     await progress_callback("[wzgram] Content protected (noforwards); switching to high-speed re-upload...")
+            except (MessageIdInvalid, MessageEmpty):
+                raise MessageNotFoundError(f"Message #{message_id} not found or deleted in source chat.")
             except Exception as e:
+                err_str = str(e).lower()
+                if "not found" in err_str or "message_id_invalid" in err_str or "empty" in err_str:
+                    raise MessageNotFoundError(f"Message #{message_id} not found in source chat: {e}")
                 logger.info(f"[wzgram] copy_message failed ({e}), falling back to parallel re-upload...")
 
         # 2. High-Speed Parallel Download & Upload with wzgram + WarpCrypto
-        msg = await self.client.get_messages(chat_id=s_id, message_ids=message_id)
-        if not msg:
-            raise Exception(f"Message #{message_id} not found in source chat.")
+        try:
+            msg = await asyncio.wait_for(
+                self.client.get_messages(chat_id=s_id, message_ids=message_id),
+                timeout=15.0
+            )
+        except (MessageIdInvalid, MessageEmpty):
+            raise MessageNotFoundError(f"Message #{message_id} not found or deleted in source chat.")
+        except Exception as e:
+            err_str = str(e).lower()
+            if "not found" in err_str or "message_id_invalid" in err_str or "empty" in err_str:
+                raise MessageNotFoundError(f"Message #{message_id} not found in source chat: {e}")
+            logger.warning(f"[wzgram] get_messages failed ({e})")
+            msg = None
+
+        if not msg or getattr(msg, "empty", False):
+            raise MessageNotFoundError(f"Message #{message_id} not found or deleted in source chat.")
 
         # If text-only message
         if not msg.media:
             if not msg.text:
-                return None
-            return await self.client.send_message(
-                chat_id=d_id,
-                text=msg.text,
-                entities=msg.entities
+                raise MessageNotFoundError(f"Message #{message_id} has no media and no text (empty/deleted).")
+            return await asyncio.wait_for(
+                self.client.send_message(
+                    chat_id=d_id,
+                    text=msg.text,
+                    entities=msg.entities
+                ),
+                timeout=30.0
             )
 
         # Handle Media (Video, Document, Photo, Audio, Voice, Animation)
@@ -194,10 +223,13 @@ class WzgramEngine:
 
             # Download using wzgram parallel engine
             temp_dir = str(TEMP_DOWNLOAD_DIR)
-            file_path = await self.client.download_media(
-                msg,
-                file_name=temp_dir + os.sep,
-                progress=wz_dl_progress
+            file_path = await asyncio.wait_for(
+                self.client.download_media(
+                    msg,
+                    file_name=temp_dir + os.sep,
+                    progress=wz_dl_progress
+                ),
+                timeout=1800.0
             )
 
             if not file_path or not os.path.exists(file_path):
@@ -222,71 +254,90 @@ class WzgramEngine:
             caption = msg.caption or ""
             caption_entities = msg.caption_entities
 
-            # Dispatch upload based on media type
+            # Dispatch upload based on media type with safety timeouts
+            upload_timeout = 1800.0
             if msg.video:
-                return await self.client.send_video(
-                    chat_id=d_id,
-                    video=temp_path,
-                    caption=caption,
-                    caption_entities=caption_entities,
-                    duration=msg.video.duration or 0,
-                    width=msg.video.width or 0,
-                    height=msg.video.height or 0,
-                    supports_streaming=True,
-                    progress=wz_up_progress
+                return await asyncio.wait_for(
+                    self.client.send_video(
+                        chat_id=d_id,
+                        video=temp_path,
+                        caption=caption,
+                        caption_entities=caption_entities,
+                        duration=msg.video.duration or 0,
+                        width=msg.video.width or 0,
+                        height=msg.video.height or 0,
+                        supports_streaming=True,
+                        progress=wz_up_progress
+                    ),
+                    timeout=upload_timeout
                 )
             elif msg.audio:
-                return await self.client.send_audio(
-                    chat_id=d_id,
-                    audio=temp_path,
-                    caption=caption,
-                    caption_entities=caption_entities,
-                    duration=msg.audio.duration or 0,
-                    performer=msg.audio.performer,
-                    title=msg.audio.title,
-                    progress=wz_up_progress
+                return await asyncio.wait_for(
+                    self.client.send_audio(
+                        chat_id=d_id,
+                        audio=temp_path,
+                        caption=caption,
+                        caption_entities=caption_entities,
+                        duration=msg.audio.duration or 0,
+                        performer=msg.audio.performer,
+                        title=msg.audio.title,
+                        progress=wz_up_progress
+                    ),
+                    timeout=upload_timeout
                 )
             elif msg.photo:
-                return await self.client.send_photo(
-                    chat_id=d_id,
-                    photo=temp_path,
-                    caption=caption,
-                    caption_entities=caption_entities,
-                    progress=wz_up_progress
+                return await asyncio.wait_for(
+                    self.client.send_photo(
+                        chat_id=d_id,
+                        photo=temp_path,
+                        caption=caption,
+                        caption_entities=caption_entities,
+                        progress=wz_up_progress
+                    ),
+                    timeout=upload_timeout
                 )
             elif msg.voice:
-                return await self.client.send_voice(
-                    chat_id=d_id,
-                    voice=temp_path,
-                    caption=caption,
-                    caption_entities=caption_entities,
-                    duration=msg.voice.duration or 0,
-                    progress=wz_up_progress
+                return await asyncio.wait_for(
+                    self.client.send_voice(
+                        chat_id=d_id,
+                        voice=temp_path,
+                        caption=caption,
+                        caption_entities=caption_entities,
+                        duration=msg.voice.duration or 0,
+                        progress=wz_up_progress
+                    ),
+                    timeout=upload_timeout
                 )
             elif msg.animation:
-                return await self.client.send_animation(
-                    chat_id=d_id,
-                    animation=temp_path,
-                    caption=caption,
-                    caption_entities=caption_entities,
-                    duration=msg.animation.duration or 0,
-                    width=msg.animation.width or 0,
-                    height=msg.animation.height or 0,
-                    progress=wz_up_progress
+                return await asyncio.wait_for(
+                    self.client.send_animation(
+                        chat_id=d_id,
+                        animation=temp_path,
+                        caption=caption,
+                        caption_entities=caption_entities,
+                        duration=msg.animation.duration or 0,
+                        width=msg.animation.width or 0,
+                        height=msg.animation.height or 0,
+                        progress=wz_up_progress
+                    ),
+                    timeout=upload_timeout
                 )
             else:
                 # Default: Send as Document / File
                 orig_name = None
                 if msg.document and msg.document.file_name:
                     orig_name = msg.document.file_name
-                return await self.client.send_document(
-                    chat_id=d_id,
-                    document=temp_path,
-                    caption=caption,
-                    caption_entities=caption_entities,
-                    file_name=orig_name,
-                    force_document=True,
-                    progress=wz_up_progress
+                return await asyncio.wait_for(
+                    self.client.send_document(
+                        chat_id=d_id,
+                        document=temp_path,
+                        caption=caption,
+                        caption_entities=caption_entities,
+                        file_name=orig_name,
+                        force_document=True,
+                        progress=wz_up_progress
+                    ),
+                    timeout=upload_timeout
                 )
 
         finally:

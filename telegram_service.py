@@ -21,7 +21,7 @@ from telethon.errors import (
 )
 from config import SESSION_NAME, TEMP_DOWNLOAD_DIR, load_config, save_config
 from fast_transfer import fast_download_file, fast_upload_file
-from wzgram_service import wzgram_engine
+from wzgram_service import wzgram_engine, MessageNotFoundError
 
 try:
     import cryptg
@@ -431,11 +431,18 @@ class TelegramService:
         raw_text = getattr(message, "message", None) or getattr(message, "raw_text", None) or ""
         entities = getattr(message, "entities", None)
 
+        # Early check: if no media and no text, message is empty or deleted
+        if not message.media and not raw_text:
+            raise MessageNotFoundError(f"Message #{getattr(message, 'id', '?')} has no media and no text (empty/deleted).")
+
         # 1. Handle Polls
         if message.media and isinstance(message.media, MessageMediaPoll):
-            return await self.client.send_message(
-                dest_peer,
-                file=message.media, # In telethon, sending poll media directly creates independent poll
+            return await asyncio.wait_for(
+                self.client.send_message(
+                    dest_peer,
+                    file=message.media, # In telethon, sending poll media directly creates independent poll
+                ),
+                timeout=30.0
             )
 
         # Delegate to wzgram engine for maximum download/upload speed (WarpCrypto + 24 workers)
@@ -452,18 +459,24 @@ class TelegramService:
             )
             if wz_res:
                 return wz_res
+        except MessageNotFoundError:
+            # Propagate immediately - do not attempt phantom fallback for deleted/empty message
+            raise
         except Exception as wz_err:
             logger.info(f"[wzgram] notice ({wz_err}); using parallel fallback engine...")
 
         # 2. Text-only message (or webpage preview)
         if not message.media or isinstance(message.media, MessageMediaWebPage):
             if not raw_text:
-                return None
-            return await self.client.send_message(
-                dest_peer,
-                raw_text,
-                formatting_entities=entities,
-                link_preview=bool(message.media)
+                raise MessageNotFoundError(f"Message #{message.id} has no text and no media.")
+            return await asyncio.wait_for(
+                self.client.send_message(
+                    dest_peer,
+                    raw_text,
+                    formatting_entities=entities,
+                    link_preview=bool(message.media)
+                ),
+                timeout=30.0
             )
 
         # 3. Media Message (Photo, Video, Document, Audio, Voice, Sticker)
@@ -471,15 +484,21 @@ class TelegramService:
         # Try server-side copy first if user hasn't explicitly forced physical re-upload
         if not force_reupload:
             try:
-                sent_msg = await self.client.send_file(
-                    dest_peer,
-                    file=message.media,
-                    caption=raw_text,
-                    formatting_entities=entities,
-                    supports_streaming=True
+                sent_msg = await asyncio.wait_for(
+                    self.client.send_file(
+                        dest_peer,
+                        file=message.media,
+                        caption=raw_text,
+                        formatting_entities=entities,
+                        supports_streaming=True
+                    ),
+                    timeout=30.0
                 )
                 return sent_msg
             except Exception as e:
+                err_str = str(e).lower()
+                if "not found" in err_str or "message_id_invalid" in err_str or "empty" in err_str:
+                    raise MessageNotFoundError(f"Message #{message.id} not found: {e}")
                 logger.info(f"Direct clone unavailable ({e}); initiating high-speed parallel re-upload...")
 
         # 4. High-Speed Parallel Download & Re-upload (Optimized for cryptg + 500MB-2GB+)
@@ -519,41 +538,53 @@ class TelegramService:
             if file_size > 2 * 1024 * 1024 and target_location and hasattr(target_location, "id"):
                 if progress_callback:
                     await progress_callback(f"Starting parallel download ({file_size / (1024*1024):.1f} MB)...")
-                await fast_download_file(
-                    self.client,
-                    target_location,
-                    temp_path,
-                    file_size,
-                    progress_callback=progress_callback
+                await asyncio.wait_for(
+                    fast_download_file(
+                        self.client,
+                        target_location,
+                        temp_path,
+                        file_size,
+                        progress_callback=progress_callback
+                    ),
+                    timeout=1800.0
                 )
             else:
                 # Direct stream download for smaller media files
-                temp_path = await self.client.download_media(message, file=temp_path)
+                temp_path = await asyncio.wait_for(
+                    self.client.download_media(message, file=temp_path),
+                    timeout=600.0
+                )
 
-            if not temp_path or not os.path.exists(temp_path):
-                raise Exception("Failed to download media for re-upload.")
+            if not temp_path or not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+                raise MessageNotFoundError(f"Media for msg #{message.id} could not be downloaded (empty or unavailable).")
 
             # 4B. High-Speed Upload (Parallel chunk upload with cryptg)
             uploaded_file = None
             if file_size > 2 * 1024 * 1024:
                 if progress_callback:
                     await progress_callback(f"Starting parallel upload ({file_size / (1024*1024):.1f} MB)...")
-                uploaded_file = await fast_upload_file(
-                    self.client,
-                    temp_path,
-                    progress_callback=progress_callback
+                uploaded_file = await asyncio.wait_for(
+                    fast_upload_file(
+                        self.client,
+                        temp_path,
+                        progress_callback=progress_callback
+                    ),
+                    timeout=1800.0
                 )
             else:
                 uploaded_file = temp_path
 
             # 4C. Send with all original attributes (video streams, names, duration) and formatting preserved
-            sent_msg = await self.client.send_file(
-                dest_peer,
-                file=uploaded_file,
-                caption=raw_text,
-                formatting_entities=entities,
-                attributes=attributes if attributes else None,
-                supports_streaming=supports_streaming
+            sent_msg = await asyncio.wait_for(
+                self.client.send_file(
+                    dest_peer,
+                    file=uploaded_file,
+                    caption=raw_text,
+                    formatting_entities=entities,
+                    attributes=attributes if attributes else None,
+                    supports_streaming=supports_streaming
+                ),
+                timeout=1800.0
             )
             return sent_msg
         finally:

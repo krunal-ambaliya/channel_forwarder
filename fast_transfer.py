@@ -53,7 +53,10 @@ class DownloadSender:
                 data = None
                 for attempt in range(4):
                     try:
-                        result = await self.client._call(self.sender, req)
+                        result = await asyncio.wait_for(
+                            self.client._call(self.sender, req),
+                            timeout=25.0
+                        )
                         data = result.bytes
                         break
                     except Exception as e:
@@ -68,7 +71,7 @@ class DownloadSender:
             await self.queue.put(None)
 
     async def next(self) -> Optional[bytes]:
-        val = await self.queue.get()
+        val = await asyncio.wait_for(self.queue.get(), timeout=35.0)
         if isinstance(val, Exception):
             raise val
         return val
@@ -102,7 +105,10 @@ class UploadSender:
         self.request.bytes = data
         for attempt in range(4):
             try:
-                await self.client._call(self.sender, self.request)
+                await asyncio.wait_for(
+                    self.client._call(self.sender, self.request),
+                    timeout=25.0
+                )
                 self.request.file_part += self.stride
                 return
             except Exception as e:
@@ -146,16 +152,19 @@ class ParallelTransferrer:
     async def _create_sender(self) -> MTProtoSender:
         dc = await self.client._get_dc(self.dc_id)
         sender = MTProtoSender(self.auth_key, loggers=self.client._log)
-        await sender.connect(self.client._connection(
-            dc.ip_address, dc.port, dc.id,
-            loggers=self.client._log,
-            proxy=self.client._proxy
-        ))
+        await asyncio.wait_for(
+            sender.connect(self.client._connection(
+                dc.ip_address, dc.port, dc.id,
+                loggers=self.client._log,
+                proxy=self.client._proxy
+            )),
+            timeout=15.0
+        )
         if not self.auth_key:
-            auth = await self.client(ExportAuthorizationRequest(self.dc_id))
+            auth = await asyncio.wait_for(self.client(ExportAuthorizationRequest(self.dc_id)), timeout=15.0)
             self.client._init_request.query = ImportAuthorizationRequest(id=auth.id, bytes=auth.bytes)
             req = InvokeWithLayerRequest(LAYER, self.client._init_request)
-            await sender.send(req)
+            await asyncio.wait_for(sender.send(req), timeout=15.0)
             self.auth_key = sender.auth_key
         return sender
 
@@ -290,25 +299,33 @@ async def fast_download_file(
     # Ensure output directory exists
     os.makedirs(os.path.dirname(os.path.abspath(out_file_path)), exist_ok=True)
 
-    with open(out_file_path, "wb") as f:
-        async for chunk in downloader.download_generator(input_location, file_size):
-            f.write(chunk)
-            downloaded_bytes += len(chunk)
-            
-            now = time.time()
-            if progress_callback and (now - last_callback_time >= 1.0 or downloaded_bytes >= file_size):
-                pct, speed, eta = speed_tracker.get_progress_info(downloaded_bytes)
-                size_mb = file_size / (1024 * 1024)
-                done_mb = downloaded_bytes / (1024 * 1024)
-                status_msg = f"Downloading: {done_mb:.1f}/{size_mb:.1f} MB ({pct}) • {speed} • ETA: {eta}"
-                try:
-                    if asyncio.iscoroutinefunction(progress_callback):
-                        await progress_callback(status_msg)
-                    else:
-                        progress_callback(status_msg)
-                except Exception:
-                    pass
-                last_callback_time = now
+    try:
+        with open(out_file_path, "wb") as f:
+            async for chunk in downloader.download_generator(input_location, file_size):
+                f.write(chunk)
+                downloaded_bytes += len(chunk)
+                
+                now = time.time()
+                if progress_callback and (now - last_callback_time >= 1.0 or downloaded_bytes >= file_size):
+                    pct, speed, eta = speed_tracker.get_progress_info(downloaded_bytes)
+                    size_mb = file_size / (1024 * 1024)
+                    done_mb = downloaded_bytes / (1024 * 1024)
+                    status_msg = f"Downloading: {done_mb:.1f}/{size_mb:.1f} MB ({pct}) • {speed} • ETA: {eta}"
+                    try:
+                        if asyncio.iscoroutinefunction(progress_callback):
+                            await progress_callback(status_msg)
+                        else:
+                            progress_callback(status_msg)
+                    except Exception:
+                        pass
+                    last_callback_time = now
+    except Exception:
+        if os.path.exists(out_file_path):
+            try:
+                os.remove(out_file_path)
+            except Exception:
+                pass
+        raise
 
     return out_file_path
 
