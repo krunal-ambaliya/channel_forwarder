@@ -336,6 +336,435 @@
     .channel-select-wrap {
       display: flex;
       gap: 8px;
+      position: relative;
+    }
+
+    /* Visually hidden select for maintaining standard form behavior and compatibility */
+    .searchable-select-hidden {
+      position: absolute !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      clip: rect(0 0 0 0) !important;
+      overflow: hidden !important;
+    }
+
+    /* Custom Searchable Dropdown Container */
+    .searchable-dropdown {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .searchable-dropdown.open {
+      z-index: 50;
+    }
+
+    .dropdown-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 44px;
+      padding: 9px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-sizing: border-box;
+      gap: 10px;
+    }
+
+    .dropdown-trigger:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(18, 24, 42, 0.9);
+    }
+
+    .dropdown-trigger:focus-visible,
+    .searchable-dropdown.open .dropdown-trigger {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+      background: rgba(18, 24, 42, 0.95);
+    }
+
+    .dropdown-trigger.invalid {
+      border-color: var(--accent-rose) !important;
+      box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.25) !important;
+      animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+      40%, 60% { transform: translate3d(3px, 0, 0); }
+    }
+
+    .dropdown-trigger-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dropdown-placeholder {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dropdown-selected-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .dropdown-selected-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25));
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      flex-shrink: 0;
+    }
+
+    .dropdown-selected-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dropdown-selected-username {
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .dropdown-selected-badge {
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      text-transform: capitalize;
+      flex-shrink: 0;
+    }
+
+    .dropdown-trigger-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .dropdown-clear-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      padding: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .dropdown-clear-btn:hover {
+      color: var(--accent-rose);
+      background: rgba(244, 63, 94, 0.15);
+    }
+
+    .dropdown-arrow {
+      color: var(--text-dim);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .searchable-dropdown.open .dropdown-arrow {
+      transform: rotate(180deg);
+      color: var(--primary);
+    }
+
+    /* Popover Menu */
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #111422;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: var(--radius-md);
+      box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.85), 0 0 25px -5px rgba(99, 102, 241, 0.25);
+      z-index: 1000;
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      display: none;
+      animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .searchable-dropdown.open .dropdown-menu {
+      display: block;
+    }
+
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .dropdown-search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(14, 18, 32, 0.95);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .dropdown-search-icon {
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .dropdown-search-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+
+    .dropdown-search-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .dropdown-search-clear {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: var(--text-muted);
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .dropdown-search-clear:hover {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--accent-rose);
+    }
+
+    .dropdown-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 14px;
+      background: rgba(10, 12, 20, 0.7);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .dropdown-count {
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-weight: 500;
+    }
+
+    .dropdown-options-list {
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .dropdown-options-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .dropdown-options-list::-webkit-scrollbar-track {
+      background: rgba(10, 12, 20, 0.3);
+    }
+    .dropdown-options-list::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.3);
+      border-radius: 3px;
+    }
+    .dropdown-options-list::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      gap: 12px;
+      border-left: 3px solid transparent;
+    }
+
+    .dropdown-item:hover,
+    .dropdown-item.focused {
+      background: rgba(99, 102, 241, 0.12);
+      border-left-color: var(--primary);
+    }
+
+    .dropdown-item.selected {
+      background: rgba(99, 102, 241, 0.2);
+      border-left-color: var(--accent-cyan);
+    }
+
+    .dropdown-item-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .dropdown-item-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(6, 182, 212, 0.25));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #c7d2fe;
+      flex-shrink: 0;
+    }
+
+    .dropdown-item-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .dropdown-item-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dropdown-item-sub {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.73rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .dropdown-item-sub .username {
+      color: var(--accent-cyan);
+    }
+
+    .dropdown-item-badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-transform: capitalize;
+      flex-shrink: 0;
+    }
+
+    .dropdown-item-check {
+      color: var(--accent-cyan);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .dropdown-highlight {
+      background: rgba(99, 102, 241, 0.35);
+      color: #ffffff;
+      font-weight: 700;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .dropdown-empty {
+      padding: 22px 16px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    .dropdown-empty-icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    .dropdown-empty-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 6px 14px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 6px;
+      color: #818cf8;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dropdown-empty-action:hover {
+      background: rgba(99, 102, 241, 0.25);
+      color: #ffffff;
+      border-color: var(--primary);
     }
 
     /* Switch toggle */
@@ -649,9 +1078,43 @@
         <div class="form-group">
           <label class="form-label">Source Channel (Origin)</label>
           <div class="channel-select-wrap">
-            <select id="sourceSelect" class="input-field" required>
-              <option value="" disabled selected>Select source channel...</option>
-            </select>
+            <div class="searchable-dropdown" id="sourceDropdownWrap">
+              <select id="sourceSelect" class="searchable-select-hidden">
+                <option value="" disabled selected>Select source channel...</option>
+              </select>
+              
+              <div class="dropdown-trigger" id="sourceTrigger" tabindex="0" onclick="toggleDropdown('source')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDropdown('source');}">
+                <div class="dropdown-trigger-content">
+                  <span class="dropdown-placeholder" id="sourcePlaceholder">Select source channel...</span>
+                  <div class="dropdown-selected-info" id="sourceSelectedInfo" style="display: none;">
+                    <div class="dropdown-selected-icon" id="sourceSelectedIcon">📢</div>
+                    <span class="dropdown-selected-title" id="sourceSelectedTitle"></span>
+                    <span class="dropdown-selected-username" id="sourceSelectedUser"></span>
+                    <span class="dropdown-selected-badge" id="sourceSelectedBadge"></span>
+                  </div>
+                </div>
+                <div class="dropdown-trigger-actions">
+                  <button type="button" class="dropdown-clear-btn" id="sourceClearBtn" title="Clear selection" onclick="clearChannelSelection(event, 'source')" style="display: none;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                  <svg class="dropdown-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+              </div>
+
+              <div class="dropdown-menu" id="sourceMenu">
+                <div class="dropdown-search-wrap">
+                  <svg class="dropdown-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  <input type="text" class="dropdown-search-input" id="sourceSearchInput" placeholder="Search by channel name, @username, or ID..." autocomplete="off" oninput="filterDropdown('source', this.value)" onkeydown="handleDropdownKeydown(event, 'source')">
+                  <button type="button" class="dropdown-search-clear" id="sourceSearchClear" onclick="clearDropdownSearch('source')" style="display: none;" title="Clear search">✕</button>
+                </div>
+                <div class="dropdown-meta-bar">
+                  <span class="dropdown-count" id="sourceCount">0 channels</span>
+                  <span class="dropdown-hint">Type to filter &middot; Enter to select</span>
+                </div>
+                <div class="dropdown-options-list" id="sourceOptionsList"></div>
+              </div>
+            </div>
+
             <button type="button" class="btn btn-secondary btn-icon" title="Refresh channels list" onclick="loadChannels(true, 'source')">
               <svg id="refreshIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
@@ -665,9 +1128,43 @@
         <div class="form-group">
           <label class="form-label">Destination Channel (Target)</label>
           <div class="channel-select-wrap">
-            <select id="destinationSelect" class="input-field" required>
-              <option value="" disabled selected>Select destination channel...</option>
-            </select>
+            <div class="searchable-dropdown" id="destDropdownWrap">
+              <select id="destinationSelect" class="searchable-select-hidden">
+                <option value="" disabled selected>Select destination channel...</option>
+              </select>
+
+              <div class="dropdown-trigger" id="destTrigger" tabindex="0" onclick="toggleDropdown('dest')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDropdown('dest');}">
+                <div class="dropdown-trigger-content">
+                  <span class="dropdown-placeholder" id="destPlaceholder">Select destination channel...</span>
+                  <div class="dropdown-selected-info" id="destSelectedInfo" style="display: none;">
+                    <div class="dropdown-selected-icon" id="destSelectedIcon">🎯</div>
+                    <span class="dropdown-selected-title" id="destSelectedTitle"></span>
+                    <span class="dropdown-selected-username" id="destSelectedUser"></span>
+                    <span class="dropdown-selected-badge" id="destSelectedBadge"></span>
+                  </div>
+                </div>
+                <div class="dropdown-trigger-actions">
+                  <button type="button" class="dropdown-clear-btn" id="destClearBtn" title="Clear selection" onclick="clearChannelSelection(event, 'dest')" style="display: none;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                  <svg class="dropdown-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+              </div>
+
+              <div class="dropdown-menu" id="destMenu">
+                <div class="dropdown-search-wrap">
+                  <svg class="dropdown-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  <input type="text" class="dropdown-search-input" id="destSearchInput" placeholder="Search by channel name, @username, or ID..." autocomplete="off" oninput="filterDropdown('dest', this.value)" onkeydown="handleDropdownKeydown(event, 'dest')">
+                  <button type="button" class="dropdown-search-clear" id="destSearchClear" onclick="clearDropdownSearch('dest')" style="display: none;" title="Clear search">✕</button>
+                </div>
+                <div class="dropdown-meta-bar">
+                  <span class="dropdown-count" id="destCount">0 channels</span>
+                  <span class="dropdown-hint">Type to filter &middot; Enter to select</span>
+                </div>
+                <div class="dropdown-options-list" id="destOptionsList"></div>
+              </div>
+            </div>
+
             <button type="button" class="btn btn-secondary btn-icon" title="Refresh channels list" onclick="loadChannels(true, 'dest')">
               <svg id="destRefreshIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
@@ -1087,8 +1584,294 @@
       location.reload();
     }
 
-    // --- Channel Management ---
+    // --- Channel Management & Searchable Dropdowns ---
     let currentAddTarget = 'source';
+
+    const dropdownState = {
+      source: {
+        isOpen: false,
+        searchQuery: '',
+        activeIndex: -1,
+        filteredChannels: []
+      },
+      dest: {
+        isOpen: false,
+        searchQuery: '',
+        activeIndex: -1,
+        filteredChannels: []
+      }
+    };
+
+    function highlightMatch(text, query) {
+      if (!text) return '';
+      const str = String(text);
+      if (!query || !query.trim()) return escapeHtml(str);
+      const q = query.trim().toLowerCase();
+      const idx = str.toLowerCase().indexOf(q);
+      if (idx === -1) return escapeHtml(str);
+      const before = escapeHtml(str.slice(0, idx));
+      const matched = escapeHtml(str.slice(idx, idx + q.length));
+      const after = escapeHtml(str.slice(idx + q.length));
+      return `${before}<mark class="dropdown-highlight">${matched}</mark>${after}`;
+    }
+
+    function getChannelIconAndBadge(ch, target) {
+      const type = (ch.type || 'channel').toLowerCase();
+      let icon = target === 'dest' ? '🎯' : '📢';
+      if (type.includes('group')) icon = '👥';
+      else if (type === 'user') icon = '👤';
+      else if (type === 'chat') icon = '💬';
+      return { icon, type };
+    }
+
+    function toggleDropdown(target) {
+      const other = target === 'source' ? 'dest' : 'source';
+      closeDropdown(other);
+
+      const wrap = document.getElementById(`${target}DropdownWrap`);
+      const searchInput = document.getElementById(`${target}SearchInput`);
+      const state = dropdownState[target];
+
+      state.isOpen = !state.isOpen;
+      if (state.isOpen) {
+        wrap.classList.add('open');
+        filterDropdown(target, state.searchQuery || '');
+        if (searchInput) {
+          setTimeout(() => {
+            searchInput.focus();
+            searchInput.select();
+          }, 50);
+        }
+      } else {
+        wrap.classList.remove('open');
+        state.activeIndex = -1;
+      }
+    }
+
+    function closeDropdown(target) {
+      const wrap = document.getElementById(`${target}DropdownWrap`);
+      if (wrap) wrap.classList.remove('open');
+      dropdownState[target].isOpen = false;
+      dropdownState[target].activeIndex = -1;
+    }
+
+    function clearDropdownSearch(target) {
+      const input = document.getElementById(`${target}SearchInput`);
+      if (input) {
+        input.value = '';
+        filterDropdown(target, '');
+        input.focus();
+      }
+    }
+
+    function filterDropdown(target, query = '') {
+      const state = dropdownState[target];
+      state.searchQuery = query;
+      const q = (query || '').trim().toLowerCase();
+
+      const clearBtn = document.getElementById(`${target}SearchClear`);
+      if (clearBtn) {
+        clearBtn.style.display = q ? 'flex' : 'none';
+      }
+
+      state.filteredChannels = channelsList.filter(ch => {
+        if (!q) return true;
+        const title = (ch.title || '').toLowerCase();
+        const username = (ch.username || '').toLowerCase();
+        const id = String(ch.id || '');
+        return title.includes(q) || username.includes(q) || id.includes(q);
+      });
+
+      state.activeIndex = -1;
+      renderDropdownList(target);
+    }
+
+    function renderDropdownList(target) {
+      const listEl = document.getElementById(`${target}OptionsList`);
+      const countEl = document.getElementById(`${target}Count`);
+      const state = dropdownState[target];
+      const selectEl = document.getElementById(target === 'source' ? 'sourceSelect' : 'destinationSelect');
+      const currentSelectedId = selectEl ? selectEl.value : '';
+
+      if (!listEl) return;
+
+      const total = channelsList.length;
+      const count = state.filteredChannels.length;
+      if (countEl) {
+        countEl.innerText = state.searchQuery ? `Showing ${count} of ${total}` : `${total} channels`;
+      }
+
+      if (count === 0) {
+        const qEsc = escapeHtml(state.searchQuery);
+        listEl.innerHTML = `
+          <div class="dropdown-empty">
+            <div class="dropdown-empty-icon">🔍</div>
+            <div>No channels matching <strong>"${qEsc}"</strong></div>
+            <button type="button" class="dropdown-empty-action" onclick="openAddChannelModal('${target}'); closeDropdown('${target}');">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Add / Join channel directly
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      state.filteredChannels.forEach((ch, idx) => {
+        const isSelected = String(currentSelectedId) === String(ch.id);
+        const isFocused = state.activeIndex === idx;
+        const { icon, type } = getChannelIconAndBadge(ch, target);
+        const titleHighlight = highlightMatch(ch.title, state.searchQuery);
+        const userHighlight = ch.username ? '@' + highlightMatch(ch.username, state.searchQuery) : `ID: ${ch.id}`;
+        const avatarLetter = (ch.title || 'C').trim().charAt(0).toUpperCase() || 'C';
+
+        html += `
+          <div class="dropdown-item ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''}" 
+               data-index="${idx}" 
+               data-id="${escapeHtml(String(ch.id))}"
+               onclick="selectChannel('${target}', '${escapeHtml(String(ch.id))}')">
+            <div class="dropdown-item-main">
+              <div class="dropdown-item-avatar">${avatarLetter}</div>
+              <div class="dropdown-item-text">
+                <div class="dropdown-item-title">${titleHighlight}</div>
+                <div class="dropdown-item-sub">
+                  <span class="username">${userHighlight}</span>
+                  <span class="dropdown-item-badge">${type}</span>
+                </div>
+              </div>
+            </div>
+            ${isSelected ? `
+              <div class="dropdown-item-check" title="Selected">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      listEl.innerHTML = html;
+    }
+
+    function selectChannel(target, channelId) {
+      const selectEl = document.getElementById(target === 'source' ? 'sourceSelect' : 'destinationSelect');
+      if (selectEl) {
+        selectEl.value = channelId;
+        selectEl.dispatchEvent(new Event('change'));
+      }
+      closeDropdown(target);
+      syncDropdownTrigger(target);
+    }
+
+    function clearChannelSelection(event, target) {
+      if (event) event.stopPropagation();
+      const selectEl = document.getElementById(target === 'source' ? 'sourceSelect' : 'destinationSelect');
+      if (selectEl) {
+        selectEl.value = '';
+        selectEl.dispatchEvent(new Event('change'));
+      }
+      syncDropdownTrigger(target);
+    }
+
+    function syncDropdownTrigger(target) {
+      const selectEl = document.getElementById(target === 'source' ? 'sourceSelect' : 'destinationSelect');
+      const placeholderEl = document.getElementById(`${target}Placeholder`);
+      const infoEl = document.getElementById(`${target}SelectedInfo`);
+      const titleEl = document.getElementById(`${target}SelectedTitle`);
+      const userEl = document.getElementById(`${target}SelectedUser`);
+      const badgeEl = document.getElementById(`${target}SelectedBadge`);
+      const iconEl = document.getElementById(`${target}SelectedIcon`);
+      const clearBtn = document.getElementById(`${target}ClearBtn`);
+      const triggerEl = document.getElementById(`${target}Trigger`);
+
+      if (triggerEl) triggerEl.classList.remove('invalid');
+
+      if (!selectEl || !selectEl.value) {
+        if (placeholderEl) placeholderEl.style.display = 'block';
+        if (infoEl) infoEl.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+        return;
+      }
+
+      const channelId = String(selectEl.value);
+      const ch = channelsList.find(c => String(c.id) === channelId);
+
+      if (ch) {
+        const { icon, type } = getChannelIconAndBadge(ch, target);
+        if (placeholderEl) placeholderEl.style.display = 'none';
+        if (infoEl) infoEl.style.display = 'flex';
+        if (titleEl) titleEl.innerText = ch.title || 'Untitled Channel';
+        if (userEl) userEl.innerText = ch.username ? `@${ch.username}` : '';
+        if (badgeEl) badgeEl.innerText = type;
+        if (iconEl) iconEl.innerText = icon;
+        if (clearBtn) clearBtn.style.display = 'flex';
+      } else {
+        // Fallback to select option text if channel list not yet hydrated
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (opt && opt.value) {
+          if (placeholderEl) placeholderEl.style.display = 'none';
+          if (infoEl) infoEl.style.display = 'flex';
+          if (titleEl) titleEl.innerText = opt.dataset.title || opt.text;
+          if (userEl) userEl.innerText = '';
+          if (badgeEl) badgeEl.innerText = 'Channel';
+          if (clearBtn) clearBtn.style.display = 'flex';
+        } else {
+          if (placeholderEl) placeholderEl.style.display = 'block';
+          if (infoEl) infoEl.style.display = 'none';
+          if (clearBtn) clearBtn.style.display = 'none';
+        }
+      }
+    }
+
+    function handleDropdownKeydown(e, target) {
+      const state = dropdownState[target];
+      const items = document.querySelectorAll(`#${target}OptionsList .dropdown-item`);
+      if (!items.length) {
+        if (e.key === 'Escape') closeDropdown(target);
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        state.activeIndex = (state.activeIndex + 1) % items.length;
+        updateActiveDropdownItem(target, items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        state.activeIndex = (state.activeIndex - 1 + items.length) % items.length;
+        updateActiveDropdownItem(target, items);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.activeIndex >= 0 && state.activeIndex < state.filteredChannels.length) {
+          selectChannel(target, state.filteredChannels[state.activeIndex].id);
+        } else if (state.filteredChannels.length === 1) {
+          selectChannel(target, state.filteredChannels[0].id);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDropdown(target);
+      }
+    }
+
+    function updateActiveDropdownItem(target, items) {
+      const state = dropdownState[target];
+      items.forEach((item, idx) => {
+        if (idx === state.activeIndex) {
+          item.classList.add('focused');
+          item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+          item.classList.remove('focused');
+        }
+      });
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#sourceDropdownWrap')) {
+        closeDropdown('source');
+      }
+      if (!e.target.closest('#destDropdownWrap')) {
+        closeDropdown('dest');
+      }
+    });
 
     async function loadChannels(forceRefresh = false, target = 'all') {
       const srcIcon = document.getElementById('refreshIcon');
@@ -1154,6 +1937,12 @@
           src.value = selectChannelId;
         }
       }
+
+      // Sync custom searchable dropdown triggers and filtered option lists
+      syncDropdownTrigger('source');
+      syncDropdownTrigger('dest');
+      filterDropdown('source', dropdownState.source.searchQuery || '');
+      filterDropdown('dest', dropdownState.dest.searchQuery || '');
     }
 
     function openAddChannelModal(target = 'source') {
@@ -1276,6 +2065,10 @@
             }
           }
 
+          if (matched) {
+            syncDropdownTrigger('source');
+          }
+
           // If not in dropdown yet, resolve in background and auto-select
           if (!matched && (parsed.channel_id || parsed.channel_ident)) {
             clearTimeout(parseLinkTimer);
@@ -1321,14 +2114,28 @@
       const destination_id = destSelect.value;
 
       if (!source_id || !destination_id) {
+        if (!source_id) {
+          const t = document.getElementById('sourceTrigger');
+          if (t) {
+            t.classList.add('invalid');
+            setTimeout(() => t.classList.remove('invalid'), 1500);
+          }
+        }
+        if (!destination_id) {
+          const t = document.getElementById('destTrigger');
+          if (t) {
+            t.classList.add('invalid');
+            setTimeout(() => t.classList.remove('invalid'), 1500);
+          }
+        }
         return alert('Please select both source and destination channels.');
       }
       if (source_id === destination_id) {
         return alert('Source and destination channels cannot be the same!');
       }
 
-      const source_title = srcSelect.options[srcSelect.selectedIndex].dataset.title;
-      const destination_title = destSelect.options[destSelect.selectedIndex].dataset.title;
+      const source_title = srcSelect.options[srcSelect.selectedIndex]?.dataset.title || 'Source';
+      const destination_title = destSelect.options[destSelect.selectedIndex]?.dataset.title || 'Destination';
       const name = document.getElementById('taskNameInput').value.trim() || `${source_title} ➔ ${destination_title}`;
       const mode = document.getElementById('modeSelect').value;
       const media_filter = document.getElementById('mediaFilterSelect').value;
@@ -1491,6 +2298,8 @@
     window.addEventListener('DOMContentLoaded', () => {
       connectWebSocket();
       checkAuthStatus();
+      document.getElementById('sourceSelect')?.addEventListener('change', () => syncDropdownTrigger('source'));
+      document.getElementById('destinationSelect')?.addEventListener('change', () => syncDropdownTrigger('dest'));
     });
   </script>
 </body>
